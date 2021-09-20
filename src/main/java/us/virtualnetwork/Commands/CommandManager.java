@@ -29,7 +29,7 @@ public class CommandManager {
 
             commands.add(command);
 
-            CommandListUpdateAction commands = Main.jda.getGuildById(698922596288430141L).updateCommands();
+            CommandListUpdateAction commands = Main.jda.getGuildById(Main.properties.getProperty("bot.guild")).updateCommands();
             commands.addCommands(new CommandData(command.getName(), command.getHelp()).addOptions(command.getOptions()));
             commands.queue();
         }
@@ -52,7 +52,7 @@ public class CommandManager {
     public void handle(SlashCommandEvent event) {
         ICommand command = getCommand(event.getName());
 
-        if (command != null) {
+        if (command != null && event.getGuild().getIdLong() == Long.parseLong(Main.properties.getProperty("bot.guild"))) {
             event.deferReply(command.getEphemeral()).queue();
             CommandContext ctx = new CommandContext(event);
             command.handle(ctx);

@@ -1,6 +1,7 @@
 package us.virtualnetwork.Commands.Command;
 
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -12,8 +13,10 @@ import org.simplejavamail.email.EmailBuilder;
 import org.simplejavamail.mailer.MailerBuilder;
 import us.virtualnetwork.Commands.CommandContext;
 import us.virtualnetwork.Commands.ICommand;
+import us.virtualnetwork.Database;
 import us.virtualnetwork.Main;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -22,40 +25,92 @@ public class Announce implements ICommand {
 
     @Override
     public void handle(CommandContext ctx) {
-        // Options
+        // Permissions
+        if (!ctx.getEvent().getMember().hasPermission(Permission.ADMINISTRATOR)) {
+            ctx.getEvent().getHook().sendMessage(":interrobang:You do not have permission to use this command.").setEphemeral(getEphemeral()).queue();
+            return;
+        }
+
+        // Required Options
         String title = ctx.getEvent().getOptionsByName("title").get(0).getAsString();
         String content = ctx.getEvent().getOptionsByName("content").get(0).getAsString();
         MessageChannel channel = ctx.getEvent().getOptionsByName("channel").get(0).getAsMessageChannel();
+
+        // Optional Options
+        String color = null;
+        String image = null;
+
+        if (ctx.getEvent().getOptionsByName("color").size() > 0) {
+            color = ctx.getEvent().getOptionsByName("color").get(0).getAsString();
+        }
+
+        if (ctx.getEvent().getOptionsByName("image").size() > 0) {
+            image = ctx.getEvent().getOptionsByName("image").get(0).getAsString();
+        }
 
         // Embed
         EmbedBuilder embed = new EmbedBuilder();
         embed.addField(title, content, false);
         embed.setTimestamp(new Date().toInstant());
         embed.setFooter("Posted by " + ctx.getEvent().getMember().getUser().getName());
+
+        // Color
+        if (color != null && !color.isEmpty()) {
+            embed.setColor(Color.decode(color));
+        } else {
+            embed.setColor(Color.decode(Main.properties.getProperty("bot.color")));
+        }
+
+        // Image
+        if (image != null && !image.isEmpty()) {
+            embed.setImage(image);
+        }
+
+        // Ping
+        if (ctx.getEvent().getOptionsByName("ping").get(0).getAsBoolean()) {
+            channel.sendMessage("@everyone").queue();
+        }
         channel.sendMessage(embed.build()).queue();
 
         // Email
         if (ctx.getEvent().getOptionsByName("email").get(0).getAsBoolean()) {
-            Email email = EmailBuilder.startingBlank()
-                    .from("Virtualbot", "ltk.watermelon@gmail.com")
-                    .to(Main.emails.get(0))
-                    .withSubject(title)
-                    .withPlainText(content)
-                    .buildEmail();
+            List<String> emails = Database.getEmails();
 
-            Mailer mailer = MailerBuilder
-                    .withSMTPServer("smtp.gmail.com", 587, "ltk.watermelon@gmail.com", "ysamyjdtlpstidax")
-                    .withTransportStrategy(TransportStrategy.SMTP_TLS)
-                    .withSessionTimeout(10 * 1000)
-                    .clearEmailAddressCriteria()
-                    .async()
-                    .buildMailer();
+            // Check
+            if (emails == null || emails.size() == 0){
+                ctx.getEvent().getHook().sendMessage(":white_check_mark: Announcement created in <#" + channel.getId() + ">.\n" +
+                        ":interrobang: No emails in database.").setEphemeral(getEphemeral()).queue();
+                return;
+            }
 
-            mailer.sendMail(email);
+            for (String email : Database.getEmails()){
+                Email mail = EmailBuilder.startingBlank()
+                        .from(Main.properties.getProperty("email.name"), Main.properties.getProperty("email.email"))
+                        .to(email)
+                        .withSubject(title)
+                        .withPlainText(content)
+                        .buildEmail();
+
+                Mailer mailer = MailerBuilder
+                        .withSMTPServer(Main.properties.getProperty("email.host"), Integer.parseInt(Main.properties.getProperty("email.port")),
+                                Main.properties.getProperty("email.email"), Main.properties.getProperty("email.password"))
+                        .withTransportStrategy(TransportStrategy.SMTP_TLS)
+                        .withSessionTimeout(10 * 1000)
+                        .clearEmailAddressCriteria()
+                        .async()
+                        .buildMailer();
+
+                mailer.sendMail(mail);
+            }
+
+            // Reply
+            ctx.getEvent().getHook().sendMessage(":white_check_mark: Announcement created in <#" + channel.getId() + ">.\n" +
+                    ":busts_in_silhouette: Sent to **" + emails.size() + "** linked accounts.").setEphemeral(getEphemeral()).queue();
+            return;
         }
 
         // Reply
-        ctx.getEvent().getHook().sendMessage("Announcement created.").setEphemeral(getEphemeral()).queue();
+        ctx.getEvent().getHook().sendMessage(":white_check_mark: Announcement created in <#" + channel.getId() + ">.\n").setEphemeral(getEphemeral()).queue();
     }
 
     @Override
@@ -80,6 +135,9 @@ public class Announce implements ICommand {
         options.add(new OptionData(OptionType.STRING, "title", "The title of the announcement.", true));
         options.add(new OptionData(OptionType.STRING, "content", "The content for the body of the announcement.", true));
         options.add(new OptionData(OptionType.BOOLEAN, "email", "Should the announcement be emailed to linked users?", true));
+        options.add(new OptionData(OptionType.BOOLEAN, "ping", "Should we ping everyone for this announcement?", true));
+        options.add(new OptionData(OptionType.STRING, "image", "An optional image displayed in the embed.", false));
+        options.add(new OptionData(OptionType.STRING, "color", "An optional HEX color code to change the default embed color.", false));
         return options;
     }
 

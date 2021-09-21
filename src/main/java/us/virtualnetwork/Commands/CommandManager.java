@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import us.virtualnetwork.Commands.Command.Announce;
+import us.virtualnetwork.Commands.Command.Lock;
 import us.virtualnetwork.Main;
 
 import javax.annotation.Nullable;
@@ -17,6 +18,8 @@ public class CommandManager {
 
     public CommandManager() {
         addCommand(new Announce());
+        addCommand(new Lock());
+        loadCommands();
     }
 
     private void addCommand(ICommand command) {
@@ -28,11 +31,17 @@ public class CommandManager {
             }
 
             commands.add(command);
-
-            CommandListUpdateAction commands = Main.jda.getGuildById(Main.properties.getProperty("bot.guild")).updateCommands();
-            commands.addCommands(new CommandData(command.getName(), command.getHelp()).addOptions(command.getOptions()));
-            commands.queue();
         }
+    }
+
+    private void loadCommands(){
+        CommandListUpdateAction commands = Main.jda.getGuildById(Main.properties.getProperty("bot.guild")).updateCommands();
+
+        for(ICommand command : getCommands()){
+            commands.addCommands(new CommandData(command.getName(), command.getHelp()).addOptions(command.getOptions()));
+        }
+
+        commands.queue();
     }
 
     @Nullable

@@ -26,7 +26,7 @@ public class Announce implements ICommand {
     public void handle(CommandContext ctx) {
         // Permissions
         if (!ctx.getEvent().getMember().hasPermission(Permission.ADMINISTRATOR)) {
-            ctx.getEvent().getHook().sendMessage(":interrobang:You do not have permission to use this command.").setEphemeral(getEphemeral()).queue();
+            ctx.getEvent().getHook().sendMessage(":interrobang: You do not have permission to use this command.").setEphemeral(getEphemeral()).queue();
             return;
         }
 

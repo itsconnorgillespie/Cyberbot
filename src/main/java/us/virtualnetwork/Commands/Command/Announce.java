@@ -32,7 +32,7 @@ public class Announce implements ICommand {
 
         // Required Options
         String title = ctx.getEvent().getOptionsByName("title").get(0).getAsString();
-        String content = ctx.getEvent().getOptionsByName("content").get(0).getAsString();
+        String content = ctx.getEvent().getOptionsByName("content").get(0).getAsString().replaceAll("\\\\n", System.getProperty("line.separator"));
         MessageChannel channel = ctx.getEvent().getOptionsByName("channel").get(0).getAsMessageChannel();
 
         // Optional Options
@@ -82,25 +82,24 @@ public class Announce implements ICommand {
                 return;
             }
 
-            for (String email : Database.getEmails()){
-                Email mail = EmailBuilder.startingBlank()
-                        .from(Main.properties.getProperty("email.name"), Main.properties.getProperty("email.email"))
-                        .to(email)
-                        .withSubject(title)
-                        .withPlainText(content)
-                        .buildEmail();
+            Email mail = EmailBuilder.startingBlank()
+                    .from(Main.properties.getProperty("email.name"), Main.properties.getProperty("email.email"))
+                    .to(Main.properties.getProperty("email.email"))
+                    .bccAddresses(emails)
+                    .withSubject(title)
+                    .withPlainText(content)
+                    .buildEmail();
 
-                Mailer mailer = MailerBuilder
-                        .withSMTPServer(Main.properties.getProperty("email.host"), Integer.parseInt(Main.properties.getProperty("email.port")),
-                                Main.properties.getProperty("email.email"), Main.properties.getProperty("email.password"))
-                        .withTransportStrategy(TransportStrategy.SMTP_TLS)
-                        .withSessionTimeout(10 * 1000)
-                        .clearEmailAddressCriteria()
-                        .async()
-                        .buildMailer();
+            Mailer mailer = MailerBuilder
+                    .withSMTPServer(Main.properties.getProperty("email.host"), Integer.parseInt(Main.properties.getProperty("email.port")),
+                            Main.properties.getProperty("email.email"), Main.properties.getProperty("email.password"))
+                    .withTransportStrategy(TransportStrategy.SMTP_TLS)
+                    .withSessionTimeout(10 * 1000)
+                    .clearEmailAddressCriteria()
+                    .async()
+                    .buildMailer();
 
-                mailer.sendMail(mail);
-            }
+            mailer.sendMail(mail);
 
             // Reply
             ctx.getEvent().getHook().sendMessage(":white_check_mark: Announcement created in <#" + channel.getId() + ">.\n" +
